@@ -1,0 +1,6 @@
+node_modules/
+descansos.db
+*.db
+.env
+.DS_Store
+Thumbs.db
