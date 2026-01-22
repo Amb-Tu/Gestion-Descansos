@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestión de Descansos</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">⏱️</div>
+        <div>
+          <h1>Gestión de Descansos de Personal</h1>
+        </div>
+      </div>
+      <div class="clock" id="clock">
+        <div class="clock-time">--:--:--</div>
+        <div class="clock-date">-- --- --</div>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <section class="card form-card">
+        <h2>Registro de descanso</h2>
+        <p>Ingresa tu nombre y selecciona hora para solicitar.</p>
+
+        <label class="label" for="nombre">Nombre completo</label>
+        <input
+          id="nombre"
+          type="text"
+          placeholder="Ej: Ana García"
+          autocomplete="off"
+        />
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="hora">Hora</label>
+            <input id="hora" type="time" />
+          </div>
+          <div class="field">
+            <label class="label" for="duracion">Duración</label>
+            <select id="duracion">
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn primary" id="btnSolicitar">Solicitar descanso</button>
+        <button class="btn ghost" id="btnCancelar">Cancelar mi estado</button>
+
+        <div class="capacity">
+          <div class="capacity-title">Capacidad actual</div>
+          <div class="capacity-value">
+            <span id="capacidadActual">0</span> / <span id="capacidadMax">3</span>
+          </div>
+          <div class="capacity-sub">Espacios disponibles</div>
+        </div>
+      </section>
+
+      <div class="lists-grid">
+        <section class="card list-card">
+          <div class="list-header descanso">
+            <div class="title">
+              <span class="dot green"></span>
+              En descanso
+            </div>
+            <div class="chip" id="activosCount">0 activos</div>
+          </div>
+          <div class="cards" id="descansoList"></div>
+        </section>
+
+        <section class="card list-card">
+          <div class="list-header espera">
+            <div class="title">
+              <span class="dot red"></span>
+              En espera
+            </div>
+            <div class="chip" id="esperaCount">0 en cola</div>
+          </div>
+          <div class="cards" id="esperaList"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="footer-content">
+        <img
+          src="AMBTU_logo.svg"
+          alt="Amb Tu"
+          class="footer-logo"
+        />
+        <div class="footer-copy">
+          <div class="footer-title">Una solució d'Amb Tu</div>
+          <div class="footer-subtitle">La tecnologia més humana</div>
+        </div>
+      </div>
+    </footer>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
