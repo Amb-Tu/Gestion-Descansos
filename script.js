@@ -48,7 +48,7 @@ const minutesSince = (isoString) => {
 
 const remainingMinutes = (startedAt, total) => {
   if (!startedAt) return total;
-  return Math.max(0, total - minutesSince(startedAt));
+  return total - minutesSince(startedAt);
 };
 
 const pendingNotified = new Set();
