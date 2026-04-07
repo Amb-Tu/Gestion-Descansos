@@ -10,9 +10,30 @@ const DB_PATH = path.join(__dirname, "descansos.db");
 const db = new sqlite3.Database(DB_PATH);
 
 const pad = (value) => String(value).padStart(2, "0");
+
+/** IANA o vacío: sin TZ, se usa la zona del proceso (en Docker suele ser UTC). */
+const getQueueTimeZone = () =>
+  process.env.TZ ||
+  (typeof Intl !== "undefined" &&
+    Intl.DateTimeFormat().resolvedOptions().timeZone) ||
+  "UTC";
+
+/**
+ * HH:MM en la zona usada para la cola. Debe coincidir con la hora local del equipo
+ * (la que ve el usuario en el navegador). En Coolify/Docker definir TZ, p. ej. Europe/Madrid.
+ */
 const getNowTime = () => {
-  const now = new Date();
-  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const timeZone = getQueueTimeZone();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+  return `${pad(hour)}:${pad(minute)}`;
 };
 
 const createSchema = (tableName) => `
@@ -281,4 +302,7 @@ setInterval(() => {
 
 app.listen(PORT, () => {
   console.log(`Servidor listo en http://localhost:${PORT}`);
+  console.log(
+    `[Cola] Zona horaria para comparar horas: ${getQueueTimeZone()} (definir TZ en el servidor si no coincide con el reloj del personal)`
+  );
 });
