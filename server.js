@@ -105,52 +105,93 @@ db.serialize(() => {
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const moverColaSiHayEspacio = (callback) => {
+/** Una sola transacción del mover a la vez: evita "cannot start a transaction within a transaction". */
+let moverWaiters = [];
+let moverRunning = false;
+
+const moverColaSiHayEspacioOnce = (callback) => {
   const nowTime = getNowTime();
+  const done = (err) => {
+    try {
+      callback(err);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+  const rollback = (err, next) => {
+    db.run("ROLLBACK", (rbErr) => {
+      if (rbErr) console.error(rbErr);
+      next(err);
+    });
+  };
+
   db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
-    db.get(
-      "SELECT COUNT(*) as total FROM personas WHERE estado IN ('descanso', 'pendiente')",
-      (err, row) => {
-      if (err) {
-        db.run("ROLLBACK");
-        return callback(err);
-      }
-      const faltan = Math.max(0, MAX_DESCANSO - row.total);
-      if (faltan === 0) {
-        db.run("COMMIT");
-        return callback(null);
-      }
-      db.all(
-        "SELECT id FROM personas WHERE estado = 'espera' AND hora <= ? ORDER BY hora ASC, created_at ASC LIMIT ?",
-        [nowTime, faltan],
-        (err2, rows) => {
-          if (err2) {
-            db.run("ROLLBACK");
-            return callback(err2);
+    db.run("BEGIN TRANSACTION", (beginErr) => {
+      if (beginErr) return done(beginErr);
+      db.get(
+        "SELECT COUNT(*) as total FROM personas WHERE estado IN ('descanso', 'pendiente')",
+        (err, row) => {
+          if (err) return rollback(err, done);
+          const faltan = Math.max(0, MAX_DESCANSO - row.total);
+          if (faltan === 0) {
+            return db.run("COMMIT", (ce) => {
+              if (ce) return done(ce);
+              done(null);
+            });
           }
-          const ids = rows.map((r) => r.id);
-          if (ids.length === 0) {
-            db.run("COMMIT");
-            return callback(null);
-          }
-          const placeholders = ids.map(() => "?").join(",");
-          db.run(
-            `UPDATE personas SET estado = 'pendiente' WHERE id IN (${placeholders})`,
-            ids,
-            (err3) => {
-              if (err3) {
-                db.run("ROLLBACK");
-                return callback(err3);
+          db.all(
+            "SELECT id FROM personas WHERE estado = 'espera' AND hora <= ? ORDER BY hora ASC, created_at ASC LIMIT ?",
+            [nowTime, faltan],
+            (err2, rows) => {
+              if (err2) return rollback(err2, done);
+              const ids = rows.map((r) => r.id);
+              if (ids.length === 0) {
+                return db.run("COMMIT", (ce) => {
+                  if (ce) return done(ce);
+                  done(null);
+                });
               }
-              db.run("COMMIT");
-              return callback(null);
+              const placeholders = ids.map(() => "?").join(",");
+              db.run(
+                `UPDATE personas SET estado = 'pendiente' WHERE id IN (${placeholders})`,
+                ids,
+                (err3) => {
+                  if (err3) return rollback(err3, done);
+                  db.run("COMMIT", (ce) => {
+                    if (ce) return done(ce);
+                    done(null);
+                  });
+                }
+              );
             }
           );
         }
       );
     });
   });
+};
+
+const drainMoverQueue = () => {
+  if (moverRunning || moverWaiters.length === 0) return;
+  moverRunning = true;
+  const batch = moverWaiters;
+  moverWaiters = [];
+  moverColaSiHayEspacioOnce((err) => {
+    batch.forEach((cb) => {
+      try {
+        cb(err);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    moverRunning = false;
+    drainMoverQueue();
+  });
+};
+
+const moverColaSiHayEspacio = (callback) => {
+  moverWaiters.push(callback);
+  drainMoverQueue();
 };
 
 const getState = (res) => {
